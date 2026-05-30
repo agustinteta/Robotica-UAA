@@ -1,25 +1,27 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include "ESPAsyncWebServer.h"
+#include "LittleFS.h"
 
 // Reemplaza con tus credenciales WiFi
-const char* ssid = "Red24";
-const char* password = "Lourdes7944";
+const char* ssid = "RedRobotica24";
+const char* password = "";
 
-// Pines Sensor Ultrasónico
-const int PIN_DISPARO = 5;
-const int PIN_ECO = 4;
+// Pines Sensor Ultrasonido
+const int PIN_DISPARO = 12;
+const int PIN_ECO = 14;
 
 // Pines Puente H (Motores)
-const int PIN_MOTOR_1_1 = 13;
-const int PIN_MOTOR_1_2 = 14;
-const int PIN_MOTOR_2_1 = 16;
-const int PIN_MOTOR_2_2 = 17;
+const int PIN_MOTOR_1_1 = 16;
+const int PIN_MOTOR_1_2 = 17;
+const int PIN_MOTOR_2_1 = 18;
+const int PIN_MOTOR_2_2 = 19;
 
 // Configuracion de IP Estatica
-IPAddress ipLocal(192, 168, 0, 100);       
-IPAddress puertaEnlace(192, 168, 0, 1);    
-IPAddress mascaraSubred(255, 255, 255, 0); 
-IPAddress dns(192, 168, 0, 1);             
+IPAddress ipLocal(192, 168, 0, 100);
+IPAddress puertaEnlace(192, 168, 0, 1);
+IPAddress mascaraSubred(255, 255, 255, 0);
+IPAddress dns(192, 168, 0, 1);
 
 // Variable para la distancia del sensor
 float distancia;
@@ -70,6 +72,17 @@ void handleRoot() {
           background-color: #da190b;
         }
         #status { margin-top: 30px; font-size: 20px; color: #555; font-weight: bold; }
+        .sensor-container {
+          background-color: #fff;
+          border: 2px solid #ddd;
+          border-radius: 10px;
+          padding: 15px;
+          width: 200px;
+          margin: 20px auto;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .sensor-title { font-size: 14px; color: #777; text-transform: uppercase; margin: 0; }
+        .sensor-value { font-size: 28px; color: #2196F3; font-weight: bold; margin: 5px 0 0 0; }
       </style>
     </head>
     <body>
@@ -89,6 +102,11 @@ void handleRoot() {
         <div></div>
       </div>
 
+      <div class="sensor-container">
+        <p class="sensor-title">Distancia al Obstáculo</p>
+        <p class="sensor-value"><span id="valDistancia">--</span> cm</p>
+      </div>
+
       <p id="status">Estado: Detenido</p>
 
       <script>
@@ -100,6 +118,21 @@ void handleRoot() {
             })
             .catch(err => console.error('Error:', err));
         }
+
+        function actualizarDistancia() {
+          fetch('/distancia')
+            .then(response => response.text())
+            .then(data => {
+              if(parseFloat(data) <= 0 || parseFloat(data) > 400) {
+                document.getElementById('valDistancia').innerText = 'Fuera de rango';
+              } else {
+                document.getElementById('valDistancia').innerText = data;
+              }
+            })
+            .catch(err => console.error('Error al leer sensor:', err));
+        }
+
+        setInterval(actualizarDistancia, 500);
       </script>
     </body>
     </html>
@@ -138,22 +171,26 @@ void handleStop() {
   detenerMotores();
 }
 
+void handleDistancia() {
+  server.send(200, "text/plain", String(distancia, 2));
+}
+
 void setup() {
   Serial.begin(115200);
-  
+
   // Configuración de pines del sensor y Puente H
   pinMode(PIN_DISPARO, OUTPUT);
   pinMode(PIN_ECO, INPUT);
-  
+
   pinMode(PIN_MOTOR_1_1, OUTPUT);
   pinMode(PIN_MOTOR_1_2, OUTPUT);
   pinMode(PIN_MOTOR_2_1, OUTPUT);
   pinMode(PIN_MOTOR_2_2, OUTPUT);
-  
-  detenerMotores(); // Aseguramos que empiece quieto
+
+  detenerMotores();  // Aseguramos que empiece quieto
 
   Serial.println("\n--- Iniciando Configuración de Red ---");
-  
+
   if (!WiFi.config(ipLocal, puertaEnlace, mascaraSubred, dns)) {
     Serial.println("¡Error al aplicar la configuración de IP fija!");
   } else {
@@ -174,7 +211,7 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\n¡WiFi conectado exitosamente!");
     Serial.print("Dirección IP asignada: ");
-    Serial.println(WiFi.localIP()); 
+    Serial.println(WiFi.localIP());
 
     // Rutas del servidor web
     server.on("/", handleRoot);
@@ -183,7 +220,8 @@ void setup() {
     server.on("/left", handleLeft);
     server.on("/right", handleRight);
     server.on("/stop", handleStop);
-    
+    server.on("/distancia", handleDistancia);
+
     server.begin();
     Serial.println("Servidor HTTP iniciado.");
   } else {
@@ -199,18 +237,18 @@ void loop() {
   distancia = leerDistancia();
 
   // Si detecta un obstáculo a menos de 30cm, detenemos el movimiento
-  if (distancia > 0 && distancia <= 30) {
+  if (distancia > 0 && distancia <= 50) {
     Serial.print("¡Obstáculo detectado a ");
     Serial.print(distancia);
     Serial.println(" cm!.");
-    
+
     moverAtras();
-    delay(1000);    
+    delay(1000);
     girarIzquierda();
-    delay(250); 
+    delay(250);
     detenerMotores();
   }
-  
+
   delay(50);
 }
 
@@ -260,8 +298,8 @@ float leerDistancia() {
   digitalWrite(PIN_DISPARO, HIGH);
   delayMicroseconds(10);
   digitalWrite(PIN_DISPARO, LOW);
-  
-  long tiempo = pulseIn(PIN_ECO, HIGH, 30000); // Timeout de 30ms para evitar bloqueos
-  float d = tiempo / 58.3; 
+
+  long tiempo = pulseIn(PIN_ECO, HIGH, 30000);  // Timeout de 30ms para evitar bloqueos
+  float d = tiempo / 58.3;
   return d;
 }

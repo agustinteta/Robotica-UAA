@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Control Robot ESP32</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+  <h1>Panel de Control del Robot</h1>
+  
+  <div class="control-grid">
+    <div></div>
+    <button onclick="enviarComando('/forward')">&#9650;<br>Adelante</button>
+    <div></div>
+    
+    <button onclick="enviarComando('/left')">&#9664;<br>Izq</button>
+    <button class="btn-stop" onclick="enviarComando('/stop')">STOP</button>
+    <button onclick="enviarComando('/right')">Der<br>&#9654;</button>
+    
+    <div></div>
+    <button onclick="enviarComando('/backward')">&#9660;<br>Atrás</button>
+    <div></div>
+  </div>
+
+  <div class="sensor-container">
+    <p class="sensor-title">Distancia al Obstáculo</p>
+    <p class="sensor-value"><span id="valDistancia">--</span> cm</p>
+  </div>
+
+  <p id="status">Estado: Detenido</p>
+
+  <script>
+    function enviarComando(ruta) {
+      fetch(ruta)
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById('status').innerText = 'Estado: ' + data;
+        })
+        .catch(err => console.error('Error:', err));
+    }
+
+    function actualizarDistancia() {
+      fetch('/distancia')
+        .then(response => response.text())
+        .then(data => {
+          let dist = parseFloat(data);
+          if(dist <= 0 || dist > 400 || isNaN(dist)) {
+            document.getElementById('valDistancia').innerText = 'Fuera de rango';
+          } else {
+            document.getElementById('valDistancia').innerText = data;
+          }
+        })
+        .catch(err => console.error('Error al leer sensor:', err));
+    }
+
+    // Actualiza la distancia de forma asíncrona cada 500ms
+    setInterval(actualizarDistancia, 500);
+  </script>
+</body>
+</html>

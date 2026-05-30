@@ -1,0 +1,77 @@
+body { 
+  font-family: Arial, sans-serif; 
+  text-align: center; 
+  margin-top: 30px; 
+  background-color: #f0f0f0; 
+}
+
+h1 { 
+  color: #333; 
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  grid-template-rows: repeat(3, 100px);
+  gap: 15px;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+button {
+  background-color: #4CAF50; /* Verde */
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px #999;
+  transition: all 0.1s ease;
+}
+
+button:active {
+  background-color: #3e8e41;
+  box-shadow: 0 2px #666;
+  transform: translateY(2px);
+}
+
+.btn-stop {
+  background-color: #f44336; /* Rojo */
+  border-radius: 12px;
+}
+
+.btn-stop:active {
+  background-color: #da190b;
+}
+
+#status { 
+  margin-top: 30px; 
+  font-size: 20px; 
+  color: #555; 
+  font-weight: bold; 
+}
+
+.sensor-container {
+  background-color: #fff;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  padding: 15px;
+  width: 200px;
+  margin: 20px auto;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.sensor-title { 
+  font-size: 14px; 
+  color: #777; 
+  text-transform: uppercase; 
+  margin: 0; 
+}
+
+.sensor-value { 
+  font-size: 28px; 
+  color: #2196F3; 
+  font-weight: bold; 
+  margin: 5px 0 0 0; 
+}

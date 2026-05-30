@@ -8,11 +8,11 @@ Repositorio de trabajos prácticos de la materia **Robótica** de la **Universid
 - Materia: Robótica
 - Año: 2026
 - Profesor: Cristian E. Ordoñez
-- Alumno: Gustavo Agustin Teta
+- Alumno: Gustavo Agustín Teta
 
 ## Descripción
 
-Este repositorio contiene los proyectos y ejercicios realizados en las clases de la materia de Robótica, desarrollados con Arduino. Cada carpeta corresponde a un trabajo práctico o ejercicio de clase que explora sensores, entradas/salidas, movimiento y control.
+Este repositorio contiene los proyectos y ejercicios realizados en las clases de la materia de Robótica, desarrollados con Arduino. Cada carpeta corresponde a un trabajo práctico, un ejercicio de clase o un parcial que abordan conceptos de entradas y salidas, sensores, movimiento, control e IoT.
 
 ## Contenido por carpeta
 
@@ -34,6 +34,14 @@ Este repositorio contiene los proyectos y ejercicios realizados en las clases de
   - Ejercicio con sensor de temperatura.
 - `clase8_movimientos_wifi/`
   - Proyecto de movimiento controlado vía Wi-Fi.
+- `clase9_movimiento_wifi_con_sensor/`
+  - Integración de movimiento Wi-Fi con sensor para decisión de giro o parada.
+- `clase10_servidor_async/`
+  - Ejercicio de servidor asíncrono en Arduino para recibir comandos o datos.
+- `clase10_servidor_async_con_movimientos/`
+  - Servidor asíncrono con control de movimientos desde la red.
+- `parcial_1/`
+  - Trabajo evaluativo parcial con conceptos integradores de la cursada.
 
 ## Instrucciones de uso
 
@@ -42,13 +50,23 @@ Este repositorio contiene los proyectos y ejercicios realizados en las clases de
 3. Seleccionar la placa Arduino y el puerto serie adecuados.
 4. Compilar y cargar el sketch en la placa.
 
+## Recomendaciones para cada práctica
+
+- Documentar el objetivo del ejercicio dentro del código.
+- Listar los componentes, sensores y actuadores utilizados.
+- Anotar las conexiones eléctricas o el diagrama de cableado.
+- Indicar el resultado esperado y el comportamiento observado.
+
 ## Información adicional
 
-- Este repositorio está destinado a documentar el avance de la cursada y los ejercicios prácticos realizados en cada clase.
-- Para cada trabajo se recomienda mantener la descripción de objetivos, componentes utilizados y resultados obtenidos dentro del propio sketch o en documentación adicional.
+- El repositorio documenta el progreso académico y la experiencia práctica en Robótica.
+- Es útil mantener comentarios claros en los archivos `.ino` para facilitar la revisión y la replicación de los trabajos.
+- Para trabajos con Wi-Fi o servidor, verificar la configuración de red y la compatibilidad de la placa.
+- Si hay simulaciones o pruebas en banco, incluir la explicación de los escenarios de prueba.
 
 ## Sugerencias
 
-- Agregar el nombre del alumno y la fecha de entrega para cada práctica.
-- Incluir comentarios claros en los archivos `.ino` sobre el funcionamiento del código y los sensores/actuadores utilizados.
-- Añadir fotografías o diagramas de conexión en caso de ser necesario para replicar los trabajos.
+- Agregar nombre del alumno, fecha de entrega y versión del sketch en cada práctica.
+- Añadir fotografías o diagramas de conexión cuando sea posible.
+  - Para diagramas de conexión, se recomienda usar https://wokwi.com/ como herramienta de diseño visual y simulación.
+- Incluir observaciones sobre fallas o mejoras para futuras iteraciones.
