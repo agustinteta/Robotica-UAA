@@ -21,21 +21,13 @@ const int VELOCIDAD_MAX = 255;
 const int VELOCIDAD_MED = 76;
 const int VELOCIDAD_STOP = 0;
 
-// Variables para el filtro de promedio móvil
+// Variables globales compartidas para el filtro de promedio
 float lecturas[3] = {0, 0, 0};
 int indiceLectura = 0;
 float sumaDistancias = 0;
 float distanciaProm = 0;
 
-// Tiempos para el control del Sensor (No bloqueante)
-unsigned long tiempoUltimoDisparo = 0;
 const long intervaloLectura = 60; // Muestreo cada 60ms
-
-// Variables para medir el ancho del pulso de ECO sin pulseIn()
-unsigned long tiempoInicioEco = 0;
-unsigned long tiempoFinEco = 0;
-bool esperandoEco = false;
-bool ecoRegistrado = false;
 
 void setup() {
   pinMode(PIN_DISPARO, OUTPUT);
@@ -59,72 +51,79 @@ void setup() {
 }
 
 void loop() {
+  medirDistancia();
+}
+
+// Función para medir la distancia utilizando el sensor ultrasónico
+void medirDistancia() {
+  static unsigned long tiempoUltimoDisparo = 0;
+  static unsigned long tiempoInicioEco = 0;
+  static unsigned long tiempoFinEco = 0;
+  static bool esperandoEco = false;
+  static bool ecoRegistrado = false;
+
   unsigned long tiempoActual = millis();
 
-  // 1. DISPARO ASÍNCRONO: Cada 60ms iniciamos un disparo
+  // Disparo del sensor cada 60ms
   if (tiempoActual - tiempoUltimoDisparo >= intervaloLectura && !esperandoEco) {
     tiempoUltimoDisparo = tiempoActual;
-    
-    // Generamos el pulso de disparo sin delayMicroseconds
     digitalWrite(PIN_DISPARO, HIGH);
     digitalWrite(PIN_DISPARO, LOW);
-    
     esperandoEco = true;
     ecoRegistrado = false;
   }
 
-  // 2. MÁQUINA DE ESTADOS PARA EL ECO (Reemplaza a pulseIn)
-  // Estado A: Detectar flanco de subida (cuando arranca el eco)
+  // Captura flanco de subida (Inicio del Eco)
   if (esperandoEco && !ecoRegistrado && digitalRead(PIN_ECO) == HIGH) {
     tiempoInicioEco = micros();
     ecoRegistrado = true;
   }
   
-  // Estado B: Detectar flanco de bajada (cuando termina el eco)
+  // Captura flanco de bajada (Fin del Eco exitoso)
   if (esperandoEco && ecoRegistrado && digitalRead(PIN_ECO) == LOW) {
     tiempoFinEco = micros();
-    esperandoEco = false; // Terminamos la medición actual
+    esperandoEco = false; 
     
-    // Calcular el tiempo transcurrido en microsegundos
     long duracionEco = tiempoFinEco - tiempoInicioEco;
     float distanciaCalculada = duracionEco / 58.3;
 
-    // --- APLICACIÓN DEL FILTRO DE PROMEDIO MÓVIL ---
-    sumaDistancias = sumaDistancias - lecturas[indiceLectura];
-    lecturas[indiceLectura] = distanciaCalculada;
-    sumaDistancias = sumaDistancias + lecturas[indiceLectura];
-    indiceLectura = (indiceLectura + 1) % 3;
-
-    distanciaProm = sumaDistancias / 3.0;
-
-    // --- CONTROL DE VELOCIDAD SEGÚN DISTANCIA ---
-    if (distanciaProm > 50.0) {
-      analogWrite(PIN_ENA, VELOCIDAD_MAX);
-      analogWrite(PIN_ENB, VELOCIDAD_MAX);
-    } 
-    else if (distanciaProm >= 20.0 && distanciaProm <= 50.0) {
-      analogWrite(PIN_ENA, VELOCIDAD_MED);
-      analogWrite(PIN_ENB, VELOCIDAD_MED);
-    } 
-    else {
-      analogWrite(PIN_ENA, VELOCIDAD_STOP);
-      analogWrite(PIN_ENB, VELOCIDAD_STOP);
-      detenerMotores();
-    }
+    actualizarFiltroYVelocidad(distanciaCalculada);
   }
 
-  // Protección por si el pulso se pierde (Timeout asíncrono de 12ms)
-  if (esperandoEco && (micros() - tiempoInicioEco > 12000) && ecoRegistrado) {
+  // Protección por Timeout (20ms sin respuesta)
+  if (esperandoEco && ecoRegistrado && (micros() - tiempoInicioEco > 20000)) {
     esperandoEco = false;
-    // Forzamos un valor alto para no activar el freno por error
-    sumaDistancias = sumaDistancias - lecturas[indiceLectura];
-    lecturas[indiceLectura] = 100.0;
-    sumaDistancias = sumaDistancias + lecturas[indiceLectura];
-    indiceLectura = (indiceLectura + 1) % 3;
+    actualizarFiltroYVelocidad(0); // Detener por falta de respuesta
   }
 }
 
-// --- INTERRUPCIONES DE DIRECCIÓN (Se mantienen intactas y ultra veloces) ---
+// Función para actualizar el filtro de promedio móvil y controlar la velocidad
+void actualizarFiltroYVelocidad(float distanciaCalculada) {
+  // Aplicación del filtro de promedio móvil
+  sumaDistancias = sumaDistancias - lecturas[indiceLectura];
+  lecturas[indiceLectura] = distanciaCalculada;
+  sumaDistancias = sumaDistancias + lecturas[indiceLectura];
+  indiceLectura = (indiceLectura + 1) % 3;
+
+  distanciaProm = sumaDistancias / 3.0;
+
+  // Control de velocidad y frenado según el promedio
+  if (distanciaProm > 50.0) {
+    analogWrite(PIN_ENA, VELOCIDAD_MAX);
+    analogWrite(PIN_ENB, VELOCIDAD_MAX);
+  } 
+  else if (distanciaProm >= 20.0 && distanciaProm <= 50.0) {
+    analogWrite(PIN_ENA, VELOCIDAD_MED);
+    analogWrite(PIN_ENB, VELOCIDAD_MED);
+  } 
+  else {
+    analogWrite(PIN_ENA, VELOCIDAD_STOP);
+    analogWrite(PIN_ENB, VELOCIDAD_STOP);
+    detenerMotores();
+  }
+}
+
+// Interrupciones para los sensores de línea
 void moduloIzq() {
   if (digitalRead(PIN_SENSOR_IZQ) == HIGH) {
     girarIzquierda();
@@ -141,7 +140,7 @@ void moduloDer() {
   }
 }
 
-// --- FUNCIONES DE MOVIMIENTO ---
+// Funciones de movimiento con los motores y el puente H
 void moverAdelante() {
   digitalWrite(PIN_MOTOR_1_1, HIGH);
   digitalWrite(PIN_MOTOR_1_2, LOW);
