@@ -25,7 +25,7 @@ const int VELOCIDAD_STOP = 0;
 float lecturas[3] = {0, 0, 0};
 int indiceLectura = 0;
 float sumaDistancias = 0;
-float distancia_prom = 0;
+float distanciaProm = 0;
 
 // Tiempos para el control del Sensor (No bloqueante)
 unsigned long tiempoUltimoDisparo = 0;
@@ -95,14 +95,14 @@ void loop() {
     sumaDistancias = sumaDistancias + lecturas[indiceLectura];
     indiceLectura = (indiceLectura + 1) % 3;
 
-    distancia_prom = sumaDistancias / 3.0;
+    distanciaProm = sumaDistancias / 3.0;
 
     // --- CONTROL DE VELOCIDAD SEGÚN DISTANCIA ---
-    if (distancia_prom > 50.0) {
+    if (distanciaProm > 50.0) {
       analogWrite(PIN_ENA, VELOCIDAD_MAX);
       analogWrite(PIN_ENB, VELOCIDAD_MAX);
     } 
-    else if (distancia_prom >= 20.0 && distancia_prom <= 50.0) {
+    else if (distanciaProm >= 20.0 && distanciaProm <= 50.0) {
       analogWrite(PIN_ENA, VELOCIDAD_MED);
       analogWrite(PIN_ENB, VELOCIDAD_MED);
     } 
