@@ -74,7 +74,7 @@ void setup() {
 
 
 
-  miServo.attach(PIN_SERVO);
+  miServo.attach(PIN_SERVO, 400, 2500);
   miServo.write(anguloServo);
 
   detenerMotores(); // Aseguramos que empiece quieto

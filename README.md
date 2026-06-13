@@ -38,8 +38,12 @@ Este repositorio contiene los proyectos y ejercicios realizados en las clases de
   - Integración de movimiento Wi-Fi con sensor para decisión de giro o parada.
 - `clase10_servidor_async/`
   - Ejercicio de servidor asíncrono en Arduino para recibir comandos o datos.
-- `clase10_servidor_async_con_movimientos/`
-  - Servidor asíncrono con control de movimientos desde la red.
+- `clase10_servidor_async_con_movimientos_v2/`
+  - Servidor asíncrono con control de movimientos desde la red (versión revisada con archivos estáticos en LittleFS).
+- `clase11_servidor_async_mov_sensor_OK/`
+  - Servidor asíncrono con control de movimientos, lectura del sensor ultrasónico en tiempo real y ajuste de velocidad de motores desde el cliente web mediante slider (PWM vía `ledcWriteChannel`).
+- `clase12_servidor_async_mov_sensor_servo/`
+  - Extensión de la clase anterior que incorpora control de un servo motor: el cliente web envía el ángulo deseado (0–180°) mediante un slider y una petición GET, y el ESP32 lo aplica con la librería `ESP32Servo`.
 - `parcial_1/`
   - Trabajo evaluativo parcial con conceptos integradores de la cursada.
 
