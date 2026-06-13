@@ -3,22 +3,28 @@
 #include "LittleFS.h"
 
 // Credenciales WiFi
-const char* ssid = "RedRobotica24";
-const char* password = "";
+const char* ssid = "Red24";
+const char* password = "Lourdes7944";
 
 // Pines Sensor Ultrasonido
 const int PIN_DISPARO = 12;
 const int PIN_ECO = 14;
 
 // Pines Puente H (Motores)
-const int PIN_MOTOR_1_1 = 16;
-const int PIN_MOTOR_1_2 = 17;
-const int PIN_MOTOR_2_1 = 18;
-const int PIN_MOTOR_2_2 = 19;
+const int PIN_MOTOR_1_1 = 19;
+const int PIN_MOTOR_1_2 = 18;
+const int PIN_MOTOR_2_1 = 22;
+const int PIN_MOTOR_2_2 = 21;
+const int PIN_PWM1 = 5;
+const int PIN_PWM2 = 23;
 
-// Pines PWM para control de velocidad
-const int PIN_PWM1A = 22;
-const int PIN_PWM1B = 23;
+const int CANAL_PWM1 = 4;     // ESP32 has 16 channels which can generate 16 independent waveforms
+const int CANAL_PWM2 = 1;
+const int PWM_FREQ = 500;      // Recall that Arduino Uno is ~490 Hz. Official ESP32 example uses 5,000Hz
+const int PWM_RESOLUTION = 8;  // We'll use same resolution as Uno (8 bits, 0-255) but ESP32 can go up to 16 bits
+// The max duty cycle value based on PWM resolution (will be 255 if resolution is 8 bits)
+const int MAX_DUTY_CYCLE = (int)(pow(2, PWM_RESOLUTION) - 1); // 255 PARA 8 BITS
+
 
 // Configuracion de IP Estatica
 IPAddress ipLocal(192, 168, 0, 100);
@@ -28,9 +34,7 @@ IPAddress dns(192, 168, 0, 1);
 
 // Variable para la distancia del sensor
 float distancia;
-
-// Variable para la velocidad del motor (0-255)
-uint8_t velocidadMotor = 200;
+int velocidadMotor;
 
 // Instancia del servidor web asíncrono en el puerto 80
 AsyncWebServer server(80);
@@ -45,6 +49,13 @@ float leerDistancia();
 
 void setup() {
   Serial.begin(115200);
+  pinMode(PIN_PWM1, OUTPUT);
+  pinMode(PIN_PWM2, OUTPUT);
+  ledcAttachChannel(PIN_PWM1, PWM_FREQ, PWM_RESOLUTION, CANAL_PWM1);
+  ledcAttachChannel(PIN_PWM2, PWM_FREQ, PWM_RESOLUTION, CANAL_PWM2);
+  
+  ledcWriteChannel(CANAL_PWM1, 200); // velocidad inicial 
+  ledcWriteChannel(CANAL_PWM2, 200); 
 
   // Configuración de pines del sensor y Puente H
   pinMode(PIN_DISPARO, OUTPUT);
@@ -54,9 +65,8 @@ void setup() {
   pinMode(PIN_MOTOR_1_2, OUTPUT);
   pinMode(PIN_MOTOR_2_1, OUTPUT);
   pinMode(PIN_MOTOR_2_2, OUTPUT);
-  
-  pinMode(PIN_PWM1A, OUTPUT);
-  pinMode(PIN_PWM1B, OUTPUT);
+
+
 
   detenerMotores(); // Aseguramos que empiece quieto
 
@@ -151,9 +161,9 @@ void setup() {
           char respuesta[30];
           snprintf(respuesta, sizeof(respuesta), "Velocidad: %d", velocidadMotor);
           request->send(200, "text/plain", respuesta);
-          Serial.printf("Velocidad motor: %d\n", velocidadMotor);
-          analogWrite(PIN_PWM1A, velocidadMotor);
-          analogWrite(PIN_PWM1B, velocidadMotor); 
+          Serial.printf("Velocidad motor: %d\n", velocidadMotor); 
+          ledcWriteChannel(CANAL_PWM1, velocidadMotor);
+          ledcWriteChannel(CANAL_PWM2, velocidadMotor);
         } else {
           request->send(400, "text/plain", "Error: rango invalido (0-255)");
         }
@@ -184,7 +194,6 @@ void loop() {
     Serial.print("¡Obstáculo detectado a ");
     Serial.print(distancia);
     Serial.println(" cm!");
-
     moverAtras();
     delay(1000);
     girarIzquierda();
