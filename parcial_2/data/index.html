@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control Robot ESP32</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Panel de Control del Robot</h1>
+
+  <div class="layout">
+
+    <!-- Columna izquierda: video y modo -->
+    <div class="col-left">
+      <div class="video-container">
+        <p class="sensor-title">Cámara en vivo</p>
+        <!--
+          crossorigin="anonymous": necesario para que el canvas pueda leer
+          los píxeles del stream sin violar la política de mismo origen.
+          El servidor de la CAM debe responder con Access-Control-Allow-Origin: *
+        -->
+        <img id="streamImg"
+             crossorigin="anonymous"
+             src="http://192.168.0.101:81/stream"
+             alt="Stream ESP32-CAM" />
+
+        <!-- Canvas oculto usado únicamente para análisis de píxeles en modo PDI -->
+        <canvas id="pdiCanvas" width="160" height="120"></canvas>
+      </div>
+
+      <div class="modo-container">
+        <button class="btn-modo"     onclick="setModo(false)">Modo Normal</button>
+        <button class="btn-modo pdi" onclick="setModo(true)">Modo PDI</button>
+      </div>
+      <p id="estadoModo">Modo: Normal</p>
+    </div>
+
+    <!-- Columna derecha: movimiento, sensores, servo -->
+    <div class="col-right">
+
+      <!-- Grilla de movimiento -->
+      <div class="control-grid">
+        <div></div>
+        <button class="btn" onclick="enviarComando('/forward')">&#9650;</button>
+        <div></div>
+        <button class="btn" onclick="enviarComando('/left')">&#9664;</button>
+        <button class="btn btn-stop" onclick="enviarComando('/stop')">STOP</button>
+        <button class="btn" onclick="enviarComando('/right')">&#9654;</button>
+        <div></div>
+        <button class="btn" onclick="enviarComando('/backward')">&#9660;</button>
+        <div></div>
+      </div>
+
+      <!-- Distancia y velocidad en fila -->
+      <div class="info-row">
+        <div class="sensor-container">
+          <p class="sensor-title">Distancia</p>
+          <p class="sensor-value"><span id="valDistancia">--</span> cm</p>
+        </div>
+
+        <div class="slider-container">
+          <p class="sensor-title">Velocidad</p>
+          <input type="range" id="velocidadSlider" min="0" max="255" value="0" />
+          <p><span id="valVelocidad">0</span> / 255</p>
+        </div>
+      </div>
+
+      <!-- Control de cámara -->
+      <div class="servo-container">
+        <button class="btn" onclick="enviarComando('/cam_izq')">&#9664; Izquierda</button>
+        <button class="btn" onclick="enviarComando('/cam_der')">Derecha &#9654;</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Barra de estado -->
+  <p id="estado" class="estado">Estado: Detenido</p>
+
+  <script>
+    // Estado 
+    let modoPDI       = false;
+    let pdiOcupado    = false;  // evita acumular requests si el anterior no terminó
+
+    // Comunicación con el robot 
+    function enviarComando(ruta) {
+      fetch(ruta)
+        .then(r => r.text())
+        .then(txt => { document.getElementById('estado').textContent = 'Estado: ' + txt; })
+        .catch(err => console.error('Error:', err));
+    }
+
+    function setModo(pdi) {
+      modoPDI = pdi;
+      fetch('/modo?val=' + (pdi ? 'true' : 'false'))
+        .then(r => r.text())
+        .then(txt => {
+          document.getElementById('estadoModo').textContent = 'Modo: ' + txt;
+          document.getElementById('estado').textContent = 'Estado: Modo ' + txt + ' activado';
+          if (!pdi) enviarComando('/stop');  // detener al volver a manual
+        })
+        .catch(err => console.error('Error setModo:', err));
+    }
+
+    // Sensor de distancia (polling) 
+    function actualizarDistancia() {
+      fetch('/distancia')
+        .then(r => r.text())
+        .then(txt => {
+          const d = parseFloat(txt);
+          const el = document.getElementById('valDistancia');
+          el.textContent = (!isNaN(d) && d > 0 && d <= 400) ? d.toFixed(1) : 'Fuera de rango';
+        })
+        .catch(err => console.error('Error distancia:', err));
+    }
+    setInterval(actualizarDistancia, 500);
+
+    // Slider de velocidad
+    const velSlider  = document.getElementById('velocidadSlider');
+    const velDisplay = document.getElementById('valVelocidad');
+    velSlider.addEventListener('input',  () => { velDisplay.textContent = velSlider.value; });
+    velSlider.addEventListener('change', () => {
+      fetch('/velocidad?valor=' + velSlider.value)
+        .then(r => r.text())
+        .then(txt => { document.getElementById('estado').textContent = 'Estado: ' + txt; })
+        .catch(err => console.error('Error velocidad:', err));
+    });
+
+    // ── PDI: detección de color rojo por canvas ──────────────────────────────────
+    //
+    // Algoritmo:
+    //   1. Dibuja el frame actual del <img> stream en un canvas oculto 160×120.
+    //   2. Lee los píxeles con getImageData() (requiere CORS en el stream).
+    //   3. Cuenta y promedia la posición de los píxeles rojos.
+    //   4. Decide el comando según el centroide y el área del blob.
+    //   5. Envía el fetch al ESP32 principal.
+    //
+    const streamImg = document.getElementById('streamImg');
+    const pdiCanvas = document.getElementById('pdiCanvas');
+    const pdiCtx    = pdiCanvas.getContext('2d');
+    const W = pdiCanvas.width;   // 160
+    const H = pdiCanvas.height;  // 120
+
+    const MIN_PIXELES  = 300;    // umbral mínimo de píxeles rojos para actuar
+    const AREA_CERCA   = 0.08;   // fracción del frame que indica objeto "cerca"
+    const ZONA_MUERTA  = W / 6;  // margen central sin giro (~26 px)
+
+    function analizarFrame() {
+      if (!modoPDI || pdiOcupado) return;
+
+      // Dibujar frame actual en el canvas de análisis
+      pdiCtx.drawImage(streamImg, 0, 0, W, H);
+
+      let pixeles;
+      try {
+        pixeles = pdiCtx.getImageData(0, 0, W, H).data;
+      } catch (e) {
+        // El stream no envía CORS — no se puede analizar
+        document.getElementById('estado').textContent = 'PDI: error CORS en stream';
+        return;
+      }
+
+      let sumX = 0, sumY = 0, count = 0;
+
+      for (let i = 0; i < pixeles.length; i += 4) {
+        const r = pixeles[i];
+        const g = pixeles[i + 1];
+        const b = pixeles[i + 2];
+        if (r > 150 && g < 80 && b < 80) {
+          const idx = i / 4;
+          sumX += idx % W;
+          sumY += Math.floor(idx / W);
+          count++;
+        }
+      }
+
+      let cmd;
+      if (count < MIN_PIXELES) {
+        cmd = '/stop';
+      } else {
+        const cx   = sumX / count;
+        const area = count / (W * H);
+
+        if      (cx < W / 2 - ZONA_MUERTA) cmd = '/left';
+        else if (cx > W / 2 + ZONA_MUERTA) cmd = '/right';
+        else if (area < AREA_CERCA)         cmd = '/forward';
+        else                                cmd = '/stop';
+      }
+
+      pdiOcupado = true;
+      fetch(cmd)
+        .then(r => r.text())
+        .then(txt => {
+          document.getElementById('estado').textContent = 'PDI → ' + txt;
+          pdiOcupado = false;
+        })
+        .catch(() => { pdiOcupado = false; });
+    }
+
+    // Analizar ~7 frames por segundo (150 ms)
+    setInterval(analizarFrame, 150);
+  </script>
+</body>
+</html>
