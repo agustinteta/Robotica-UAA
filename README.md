@@ -46,6 +46,16 @@ Este repositorio contiene los proyectos y ejercicios realizados en las clases de
   - Extensión de la clase anterior que incorpora control de un servo motor: el cliente web envía el ángulo deseado (0–180°) mediante un slider y una petición GET, y el ESP32 lo aplica con la librería `ESP32Servo`.
 - `parcial_1/`
   - Trabajo evaluativo parcial con conceptos integradores de la cursada.
+- `parcial_2/`
+  - Segundo trabajo evaluativo parcial. Sistema de control robótico completo basado en **ESP32** con servidor web HTTP asíncrono (`ESPAsyncWebServer` + `LittleFS`).
+  - **Hardware:** 2 motores DC con puente H y control PWM, sensor ultrasónico HC-SR04, servo motor para orientar la cámara.
+  - **Frontend web** (`index.html` + `style.css` servidos desde LittleFS): interfaz de dos columnas con video en vivo, selector de modo, grilla de movimiento, slider de velocidad y botones de control del servo.
+  - **Modos de operación:**
+    - *Modo Normal*: el robot se controla manualmente desde la interfaz web. El sensor ultrasónico actúa como sistema de seguridad autónomo (retrocede y gira al detectar un obstáculo a ≤ 50 cm).
+    - *Modo PDI*: el sistema de seguridad ultrasónica se desactiva. El navegador recibe el stream de la ESP32-CAM, analiza cada frame con la Canvas API de JavaScript, detecta el centroide de los píxeles rojos y envía automáticamente comandos de movimiento (`/left`, `/right`, `/forward`, `/stop`) al ESP32 principal.
+  - **Endpoints principales:** `/forward`, `/backward`, `/left`, `/right`, `/stop`, `/velocidad`, `/cam_izq`, `/cam_der`, `/modo`, `/distancia`.
+- `parcial_2_cam/`
+  - Sketch para la **ESP32-CAM** (AI Thinker). Se conecta a la misma red Wi-Fi con IP estática `192.168.0.101` y sirve un stream MJPEG en `http://192.168.0.101:81/stream` con header `Access-Control-Allow-Origin: *`, habilitando la lectura de píxeles desde el canvas del frontend sin restricciones CORS.
 
 ## Instrucciones de uso
 
