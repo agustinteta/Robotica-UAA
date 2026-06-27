@@ -20,13 +20,15 @@
           los píxeles del stream sin violar la política de mismo origen.
           El servidor de la CAM debe responder con Access-Control-Allow-Origin: *
         -->
-        <img id="streamImg"
-             crossorigin="anonymous"
-             src="http://192.168.0.101:81/stream"
-             alt="Stream ESP32-CAM" />
-
-        <!-- Canvas oculto usado únicamente para análisis de píxeles en modo PDI -->
-        <canvas id="pdiCanvas" width="160" height="120"></canvas>
+        <!-- Wrapper para superponer el canvas de detección sobre la imagen -->
+        <div class="stream-wrapper">
+          <img id="streamImg"
+               crossorigin="anonymous"
+               src="http://192.168.0.101:81/stream"
+               alt="Stream ESP32-CAM" />
+          <!-- Canvas superpuesto: análisis de píxeles + overlay de detección -->
+          <canvas id="pdiCanvas" width="160" height="120"></canvas>
+        </div>
       </div>
 
       <div class="modo-container">
@@ -93,12 +95,13 @@
 
     function setModo(pdi) {
       modoPDI = pdi;
+      if (!pdi) pdiCtx.clearRect(0, 0, W, H);  // limpiar overlay al salir de PDI
       fetch('/modo?val=' + (pdi ? 'true' : 'false'))
         .then(r => r.text())
         .then(txt => {
           document.getElementById('estadoModo').textContent = 'Modo: ' + txt;
           document.getElementById('estado').textContent = 'Estado: Modo ' + txt + ' activado';
-          if (!pdi) enviarComando('/stop');  // detener al volver a manual
+          if (!pdi) enviarComando('/stop');
         })
         .catch(err => console.error('Error setModo:', err));
     }
@@ -127,14 +130,13 @@
         .catch(err => console.error('Error velocidad:', err));
     });
 
-    // ── PDI: detección de color rojo por canvas ──────────────────────────────────
-    //
+    // PDI: detección de color rojo por canvas
     // Algoritmo:
     //   1. Dibuja el frame actual del <img> stream en un canvas oculto 160×120.
-    //   2. Lee los píxeles con getImageData() (requiere CORS en el stream).
-    //   3. Cuenta y promedia la posición de los píxeles rojos.
-    //   4. Decide el comando según el centroide y el área del blob.
-    //   5. Envía el fetch al ESP32 principal.
+    //   2. Lee los píxeles con getImageData().
+    //   3. Detecta pixeles rojos y establece el centroide.
+    //   4. Dependiendo la posición del centroide, decide el comando de movimiento.
+    //   5. Envía la petición de movimiento al server.
     //
     const streamImg = document.getElementById('streamImg');
     const pdiCanvas = document.getElementById('pdiCanvas');
@@ -156,8 +158,7 @@
       try {
         pixeles = pdiCtx.getImageData(0, 0, W, H).data;
       } catch (e) {
-        // El stream no envía CORS — no se puede analizar
-        document.getElementById('estado').textContent = 'PDI: error CORS en stream';
+        document.getElementById('estado').textContent = 'PDI: error al analizar el frame';
         return;
       }
 
@@ -175,17 +176,36 @@
         }
       }
 
+      // Limpiar overlay del frame anterior
+      pdiCtx.clearRect(0, 0, W, H);
+
       let cmd;
       if (count < MIN_PIXELES) {
         cmd = '/stop';
       } else {
         const cx   = sumX / count;
+        const cy   = sumY / count;
         const area = count / (W * H);
 
         if      (cx < W / 2 - ZONA_MUERTA) cmd = '/left';
         else if (cx > W / 2 + ZONA_MUERTA) cmd = '/right';
         else if (area < AREA_CERCA)         cmd = '/forward';
         else                                cmd = '/stop';
+
+        // Dibujar mira en el centroide del objeto rojo
+        pdiCtx.strokeStyle = '#00FF00';
+        pdiCtx.lineWidth   = 1.5;
+
+        pdiCtx.beginPath();                        // círculo
+        pdiCtx.arc(cx, cy, 8, 0, 2 * Math.PI);
+        pdiCtx.stroke();
+
+        pdiCtx.beginPath();                        // cruz
+        pdiCtx.moveTo(cx - 13, cy);
+        pdiCtx.lineTo(cx + 13, cy);
+        pdiCtx.moveTo(cx, cy - 13);
+        pdiCtx.lineTo(cx, cy + 13);
+        pdiCtx.stroke();
       }
 
       pdiOcupado = true;
@@ -198,7 +218,6 @@
         .catch(() => { pdiOcupado = false; });
     }
 
-    // Analizar ~7 frames por segundo (150 ms)
     setInterval(analizarFrame, 150);
   </script>
 </body>

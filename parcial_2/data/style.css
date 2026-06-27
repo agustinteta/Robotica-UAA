@@ -10,7 +10,7 @@ h1 {
   margin-bottom: 16px;
 }
 
-/* ── Layout de dos columnas ───────────────────────────────────────────────── */
+/* Layout de dos columnas */
 .layout {
   display: flex;
   justify-content: center;
@@ -33,7 +33,7 @@ h1 {
   gap: 12px;
 }
 
-/* ── Video ────────────────────────────────────────────────────────────────── */
+/* Video */
 .video-container {
   background: #fff;
   border: 2px solid #ddd;
@@ -41,16 +41,29 @@ h1 {
   padding: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-.video-container img {
-  display: block;
-  width: 280px;
-  height: 210px;
+.stream-wrapper {
+  position: relative;
+  display: inline-block;
   margin-top: 6px;
 }
 
-#pdiCanvas { display: none; }
+.stream-wrapper img {
+  display: block;
+  width: 280px;
+  height: 210px;
+}
 
-/* ── Selector de modo ─────────────────────────────────────────────────────── */
+/* Superpuesto sobre la imagen; CSS escala 160×120 → 280×210 */
+#pdiCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 210px;
+  pointer-events: none;  /* los clics pasan a través al img */
+}
+
+/* Selector de modo */
 .modo-container {
   display: flex;
   gap: 12px;
@@ -81,7 +94,7 @@ h1 {
   margin: 0;
 }
 
-/* ── Grilla de movimiento ──────────────────────────────────────────────────── */
+/* Grilla de movimiento */
 .control-grid {
   display: grid;
   grid-template-columns: repeat(3, 80px);
@@ -114,7 +127,7 @@ h1 {
 }
 .btn-stop:active { background-color: #da190b; }
 
-/* ── Distancia + Velocidad en fila ────────────────────────────────────────── */
+/* Distancia + Velocidad en fila */
 .info-row {
   display: flex;
   gap: 12px;
@@ -146,7 +159,7 @@ h1 {
   margin: 4px 0 0 0;
 }
 
-/* ── Slider ───────────────────────────────────────────────────────────────── */
+/* Slider */
 input[type="range"] {
   width: 150px;
   height: 8px;
@@ -173,7 +186,7 @@ input[type="range"]::-moz-range-thumb {
   border: none;
 }
 
-/* ── Botones de servo (cámara) ────────────────────────────────────────────── */
+/* Botones de servo (cámara) */
 .servo-container {
   display: flex;
   gap: 16px;
@@ -185,7 +198,7 @@ input[type="range"]::-moz-range-thumb {
   font-size: 14px;
 }
 
-/* ── Barra de estado ──────────────────────────────────────────────────────── */
+/* Barra de estado */
 .estado {
   margin-top: 16px;
   font-size: 18px;
