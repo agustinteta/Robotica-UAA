@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Robot Móvil</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="main">
+    <h1>Control Robot Móvil</h1>
+
+    <div id="estado">Detenido</div>
+
+    <div id="controles">
+      <button id="btn-avanzar" class="btn" onclick="toggleBtn(1)">
+        ▲<br>Avanzar
+      </button>
+      <button id="btn-retroceder" class="btn" onclick="toggleBtn(2)">
+        ▼<br>Retroceder
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Variables lógicas del estado de cada pulsador
+    var btn1 = false;
+    var btn2 = false;
+
+    var btnAvanzar    = document.getElementById("btn-avanzar");
+    var btnRetroceder = document.getElementById("btn-retroceder");
+    var estadoDiv     = document.getElementById("estado");
+
+    function toggleBtn(num) {
+      if (num === 1) {
+        btn1 = !btn1;
+        if (btn1) btn2 = false;   // exclusión mutua
+      } else {
+        btn2 = !btn2;
+        if (btn2) btn1 = false;   // exclusión mutua
+      }
+      enviarEstado(num);
+    }
+
+    function enviarEstado(num) {
+      var state = num === 1 ? (btn1 ? 1 : 0) : (btn2 ? 1 : 0);
+      fetch(`/btn${num}?state=${state}`)
+        .then(r => r.json())
+        .then(data => {
+          // El servidor puede corregir la exclusión mutua; sincronizar UI con su respuesta
+          btn1 = data.btn1;
+          btn2 = data.btn2;
+          actualizarUI();
+        })
+        .catch(e => {
+          // Revertir si falla la comunicación
+          if (num === 1) btn1 = !btn1;
+          else           btn2 = !btn2;
+          console.error("Error de comunicación:", e.message);
+        });
+    }
+
+    function actualizarUI() {
+      btnAvanzar.classList.toggle("activo", btn1);
+      btnRetroceder.classList.toggle("activo", btn2);
+
+      if (btn1)      estadoDiv.textContent = "Avanzando";
+      else if (btn2) estadoDiv.textContent = "Retrocediendo";
+      else           estadoDiv.textContent = "Detenido";
+    }
+  </script>
+</body>
+</html>
